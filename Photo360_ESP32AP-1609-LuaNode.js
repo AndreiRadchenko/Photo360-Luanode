@@ -2,10 +2,8 @@ var config = {};
 var run = function () {
 
   function saveConfig() {
-    //if (JSON.stringify(config) != fs.readFileSync("config.txt") && !setupMode) {
       fs.writeFileSync('config.txt', JSON.stringify(config));
       console.log('Save config');
-    //}
   }
 
   var photoPizzaIp = 'disconnected';
@@ -17,7 +15,6 @@ var run = function () {
 	wifi.disconnect();
     console.log('config.wifiSsid: ' + config.wifiSsid);
     console.log('config.wifiPassword: ' + config.wifiPassword);
-	//wifi.startAP("Photo360", {authMode:"open"});
 	wifi.startAP(config.wifiSsid, {password:config.wifiPassword,authMode:"wpa_wpa2"});
 
 
@@ -37,7 +34,6 @@ var run = function () {
             ws.on('message',function(msg) {
               var configIn = JSON.parse(msg);
               config = configIn;
-              //console.log(config);
               NumControl();
               if (configIn.state === 'start' && config.state != 'started') {
                 BtnStart();
@@ -56,8 +52,6 @@ var run = function () {
     });
 
   }
-
-
 
 ///////////////////////////
 
@@ -109,7 +103,6 @@ var run = function () {
   var rOff = 1;
   digitalWrite(pinRelay, rOn);
   digitalWrite(pinLaser, rOn);
-  //P8.mode('analog');
 
   //FLAGS
   var startFlag = false;
@@ -165,10 +158,6 @@ var run = function () {
       btn = 'CALIBR';
       console.log(btn);
     }
-    // if (_code === 6450774781 || _code === 25803099127) {
-    //   btn = 'R POWER';
-    //   console.log(btn);
-    // }
     if (_code === 17246784247 || _code === 4311696061) {
       btn = 'SETUP';
       console.log(btn);
@@ -579,33 +568,18 @@ var run = function () {
   }
 
   var stepperTime;
-  var accelerationTime;
-  var accIntervalSteps;
-  var accSpeed;
   var shootingTime1F;
   var shootingTime;
   var _shootingTime;
   var nonStopTimerSpeed;
-  var accSteps;
-  var accStep;
 
   function NumControl() {
     console.log('NumControl');
-    accSteps = (config.allSteps / config.frame) / 4;
-    accStep = (config.speed / accSteps)*2;
     config.framesLeft = config.frame;
     _speed = 1;
     var frameSteps = config.allSteps / config.frame;
     stepperTime = frameSteps / config.speed * 1000;
-    //stepperTime = frameSteps / config.speed;
-    var accelerationSteps = frameSteps / 4;
-    accelerationTime = stepperTime / 4;
-    accIntervalSteps = Math.floor(0.04 * accelerationSteps);
-    if (accIntervalSteps <= 0) {
-      accIntervalSteps = 1;
-    }
-    //accStep = config.speed / accIntervalSteps;
-    accSpeed = accelerationTime / accIntervalSteps;
+
     shootingTime1F = config.pause + config.delay + stepperTime + 500;
     shootingTime = shootingTime1F * config.frame;
     _shootingTime = shootingTime;
@@ -647,13 +621,11 @@ var run = function () {
     digitalWrite(pinEn2, 1);
     digitalWrite(pinRelay, rOn);
     digitalWrite(pinLaser, rOn);
-    //P8.mode('analog');
     NumControl();
     StartDisplay();
     if (wsocket) {
       config.state = 'waiting';
       wsocket.send(JSON.stringify(config));
-      //wsocket.send(JSON.stringify(config));
     }
   }
 
@@ -707,7 +679,6 @@ var run = function () {
     var startSpeed = 100;
     //analogWrite(pinStep, 0.5, { freq : config.speed } );
     var stepsLeft = config.allSteps / config.frame;
-    console.log('accStep ' + accStep);
 
     var stepTimer = setInterval(function () {
 
@@ -717,7 +688,6 @@ var run = function () {
 
       stepsLeft -= startSpeed / 100;
       console.log('stepsLeft ' + stepsLeft);
-      console.log('startSpeed ' + startSpeed);
 
       if (stepsLeft <= 0) {
         clearInterval(stepTimer);
