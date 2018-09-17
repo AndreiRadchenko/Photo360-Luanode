@@ -97,6 +97,10 @@ var run = function () {
   digitalWrite(pinEn, 1);
   digitalWrite(pinDir, config.direction);
 
+  digitalWrite(pinStep2, 0);
+  digitalWrite(pinEn2, 1);
+  digitalWrite(pinDir2, config.direction);
+
   //RELAY
   var pinRelay = D33;
   var pinLaser = D32;
@@ -271,6 +275,11 @@ var run = function () {
       digitalWrite(pinDir, 1);
       digitalWrite(pinStep, 0);
       digitalWrite(pinEn, stOn);
+
+      digitalWrite(pinDir2, 1);
+      digitalWrite(pinStep2, 0);
+      digitalWrite(pinEn2, stOn);
+
       _speed = 1;
       infiniteRotation();
       console.log('Right rotation');
@@ -280,6 +289,11 @@ var run = function () {
       digitalWrite(pinDir, 0);
       digitalWrite(pinStep, 0);
       digitalWrite(pinEn, stOn);
+
+      digitalWrite(pinDir2, 0);
+      digitalWrite(pinStep2, 0);
+      digitalWrite(pinEn2, stOn);
+
       _speed = 1;
       infiniteRotation();
       console.log('Left rotation');
@@ -597,11 +611,13 @@ var run = function () {
     _shootingTime = shootingTime;
     nonStopTimerSpeed = stepperTime;
     digitalWrite(pinDir, config.direction);
+    digitalWrite(pinDir, config.direction);
     saveConfig();
   }
 
   function Start() {
     digitalWrite(pinEn, 0);
+    digitalWrite(pinEn2, 0);
     digitalWrite(pinLaser, rOff);
 	if (config.allSteps === -1){
 		startFlag = true;
@@ -627,6 +643,8 @@ var run = function () {
     startFlag = false;
     digitalWrite(pinStep, 0);
     digitalWrite(pinEn, 1);
+    digitalWrite(pinStep2, 0);
+    digitalWrite(pinEn2, 1);
     digitalWrite(pinRelay, rOn);
     digitalWrite(pinLaser, rOn);
     //P8.mode('analog');
@@ -648,6 +666,7 @@ var run = function () {
     config.framesLeft--;
     StartDisplay();
     analogWrite(pinStep, 0.5, { freq : config.speed } );
+    analogWrite(pinStep2, 0.5, { freq : config.speed } );
     console.log('nonStopTimerSpeed ' + nonStopTimerSpeed);
     var nonStopInterval = setInterval(function () {
       if (config.framesLeft <= 0) {
@@ -694,6 +713,7 @@ var run = function () {
 
       startSpeed = config.speed;
       analogWrite(pinStep, 0.5, { freq : startSpeed } );
+      analogWrite(pinStep2, 0.5, { freq : startSpeed } );
 
       stepsLeft -= startSpeed / 100;
       console.log('stepsLeft ' + stepsLeft);
@@ -703,6 +723,7 @@ var run = function () {
         clearInterval(stepTimer);
         _shootingTime = _shootingTime - shootingTime1F;
         digitalWrite(pinStep, 0);
+        digitalWrite(pinStep2, 0);
         Start();
         return;
       }
@@ -768,7 +789,9 @@ var run = function () {
     g.flip();
 
     digitalWrite(pinEn, 0);
+    digitalWrite(pinEn2, 0);
     analogWrite(pinStep, 0.5, { freq : config.speed } );
+    analogWrite(pinStep2, 0.5, { freq : config.speed } );
   }
 
   function Calibration() {
@@ -782,9 +805,11 @@ var run = function () {
     g.flip();
 
     digitalWrite(pinEn, 0);
+    digitalWrite(pinEn2, 0);
     var step1 = true;
     config.allSteps = 0;
     analogWrite(pinStep, 0.5, { freq : config.speed } );
+    analogWrite(pinStep2, 0.5, { freq : config.speed } );
 
     setInterval(function () {
       config.allSteps += config.speed / 100;
