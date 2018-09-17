@@ -81,6 +81,11 @@ var run = function () {
   var pinStep = D12;
   var pinEn = D13;
   var pinDir = D14;
+  //STEPPER2
+  var pinStep2 = D18;
+  var pinEn2 = D21;
+  var pinDir2 = D19;
+
   var stOn = 0;
   var stOff = 1;
 
