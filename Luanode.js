@@ -34,22 +34,14 @@ var run = function () {
             ws.on('message',function(msg) {
               var configIn = JSON.parse(msg);
               config = configIn;
-              
-              if (configIn.state === 'pause') {
-                BtnPause();
-              }
-              if (configIn.state === 'started') {
-                BtnStart();
-              }
+              NumControl();
               if (configIn.state === 'start' && config.state != 'started') {
-                NumControl();
                 BtnStart();
                 config.state = 'started';
                 ws.send(JSON.stringify(config));
               }
 
               if (configIn.state === 'stop') {
-                NumControl();
                 BtnStop();
               }
             });
@@ -93,6 +85,7 @@ var run = function () {
 
   var _speed = 1;
   var calibration = false;
+  var deg90flag = false;
 
   digitalWrite(pinStep, 0);
   digitalWrite(pinEn, 1);
@@ -115,7 +108,6 @@ var run = function () {
   var startFlag = false;
   var poweroff = false;
   var infiniteFlag = false;
-  var pauseFlag = false;
 
   require("IRReceiver").connect(D34, function(code) {
     var _code = parseInt(code, 2);
@@ -190,6 +182,10 @@ var run = function () {
       btn = 'OK';
       console.log(btn);
     }
+    if (_code === 6450813031 || _code === 25803252127) {
+      btn = '90DEG';
+      console.log(btn);
+    }
 
     console.log(_code);
 
@@ -212,15 +208,9 @@ var run = function () {
       console.log('Setup Exit');
       return;
     }
-    if (btn === 'OK' && startFlag && !poweroff  && !pauseFlag|| btn === 'OK' && infiniteFlag && !poweroff && !pauseFlag) {
-      BtnPause();
-      simNum = 0;
-      return;
-    }
-    if (btn === 'OK' && startFlag && !poweroff && pauseFlag|| btn === 'OK' && infiniteFlag && !poweroff && pauseFlag) {
+    if (btn === 'OK' && startFlag && !poweroff || btn === 'OK' && infiniteFlag && !poweroff) {
       startFlag = false;
       infiniteFlag = false;
-      pauseFlag = false;
       BtnStop();
       console.log('OK STOP');
       simNum = 0;
@@ -232,7 +222,6 @@ var run = function () {
       simNum = 0;
       return;
     }
-
     if (btn === 'DOWN' && !dispay_2 && setupMode) {
       marker = marker + indent;
       SettingsDisplay_1();
@@ -257,13 +246,6 @@ var run = function () {
       SettingsDisplay_2();
       console.log('UP D2');
       simNum = 0;
-      return;
-    }
-    if (btn === 'RIGHT' && startFlag && !poweroff && pauseFlag) {
-      pauseFlag = false;
-      console.log('CONTINUE ROTATION');
-      simNum = 0;
-      BtnStart();
       return;
     }
     if (btn === 'RIGHT' && !dispay_2 && setupMode) {
@@ -314,7 +296,15 @@ var run = function () {
       calibration = false;
       Stop();
     }
-
+    deg90flag = false;
+    if (btn === '90DEG' && !calibration && !poweroff && !deg90flag) {
+      deg90flag = true;
+      deg90();
+      return;
+    } else if (btn === '90DEG' && calibration && !poweroff) {
+      deg90flag = false;
+      Stop();
+    }
     if (btn === 'R POWER' && !poweroff) {
       g.off();
       poweroff = true;
@@ -416,6 +406,10 @@ var run = function () {
     g.drawString('speed', 8, indent * 3);
     g.drawString('=', nameIndent, indent * 3);
     g.drawString(config.speed, 57, indent * 3);
+
+    g.drawString('accel', 8, indent * 4);
+    g.drawString('=', nameIndent, indent * 4);
+    g.drawString(config.acceleration, 57, indent * 4);
 
     g.flip();
   }
@@ -521,18 +515,35 @@ var run = function () {
       SettingsDisplay_1();
       simNum++;
     }
+    if (!dispay_2 && marker === indent * 4 && simNum <= 7 && simNum > 0) {
+      config.acceleration = (config.acceleration + irDigital) * 1;
+      SettingsDisplay_1();
+      simNum++;
+    }
+    if (!dispay_2 && marker === indent * 4 && simNum === 0 && irDigital != '0') {
+      config.acceleration = '';
+      config.acceleration = (config.acceleration + irDigital) * 1;
+      SettingsDisplay_1();
+      simNum++;
+    }
 
     //DISPLAY 2
     if (dispay_2 && marker === 0 && irDigital === '1') {
       config.shootingMode = 'inter';
       SettingsDisplay_2();
     }
-
+    if (dispay_2 && marker === 0 && irDigital === '2') {
+      config.shootingMode = 'seria';
+      SettingsDisplay_2();
+    }
     if (dispay_2 && marker === 0 && irDigital === '3') {
       config.shootingMode = 'nonST';
       SettingsDisplay_2();
     }
-
+    if (dispay_2 && marker === 0 && irDigital === '4') {
+      config.shootingMode = 'PingP';
+      SettingsDisplay_2();
+    }
      if (dispay_2 && marker === indent && irDigital === '1') {
       config.direction = 1;
       SettingsDisplay_2();
@@ -733,22 +744,10 @@ var run = function () {
     console.log('BtnStop');
         Stop();
   }
-
   function BtnStart() {
     startFlag = true;
     StartDisplay();
     Start();
-  }
-
-  function BtnPause() {
-    clearInterval();
-    pauseFlag = true;
-    console.log('OK PAUSE');
-    
-    if (wsocket) {
-      config.state = 'pause';
-      wsocket.send(JSON.stringify(config));
-    }
   }
 
   function infiniteRotation() {

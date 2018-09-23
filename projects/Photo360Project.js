@@ -2,8 +2,10 @@ var config = {};
 var run = function () {
 
   function saveConfig() {
+    //if (JSON.stringify(config) != fs.readFileSync("config.txt") && !setupMode) {
       fs.writeFileSync('config.txt', JSON.stringify(config));
       console.log('Save config');
+    //}
   }
 
   var photoPizzaIp = 'disconnected';
@@ -15,6 +17,7 @@ var run = function () {
 	wifi.disconnect();
     console.log('config.wifiSsid: ' + config.wifiSsid);
     console.log('config.wifiPassword: ' + config.wifiPassword);
+	//wifi.startAP("Photo360", {authMode:"open"});
 	wifi.startAP(config.wifiSsid, {password:config.wifiPassword,authMode:"wpa_wpa2"});
 
 
@@ -34,22 +37,15 @@ var run = function () {
             ws.on('message',function(msg) {
               var configIn = JSON.parse(msg);
               config = configIn;
-              
-              if (configIn.state === 'pause') {
-                BtnPause();
-              }
-              if (configIn.state === 'started') {
-                BtnStart();
-              }
+              //console.log(config);
+              NumControl();
               if (configIn.state === 'start' && config.state != 'started') {
-                NumControl();
                 BtnStart();
                 config.state = 'started';
                 ws.send(JSON.stringify(config));
               }
 
               if (configIn.state === 'stop') {
-                NumControl();
                 BtnStop();
               }
             });
@@ -60,6 +56,8 @@ var run = function () {
     });
 
   }
+
+
 
 ///////////////////////////
 
@@ -83,39 +81,31 @@ var run = function () {
   var pinStep = D12;
   var pinEn = D13;
   var pinDir = D14;
-  //STEPPER2
-  var pinStep2 = D18;
-  var pinEn2 = D21;
-  var pinDir2 = D19;
-
   var stOn = 0;
   var stOff = 1;
 
   var _speed = 1;
   var calibration = false;
+  var deg90flag = false;
 
   digitalWrite(pinStep, 0);
   digitalWrite(pinEn, 1);
   digitalWrite(pinDir, config.direction);
 
-  digitalWrite(pinStep2, 0);
-  digitalWrite(pinEn2, 1);
-  digitalWrite(pinDir2, config.direction);
-
   //RELAY
-  var pinRelay = D25;
+  var pinRelay = D33;
   var pinLaser = D32;
   var relayOn = false;
   var rOn = 0;
   var rOff = 1;
   digitalWrite(pinRelay, rOn);
   digitalWrite(pinLaser, rOn);
+  //P8.mode('analog');
 
   //FLAGS
   var startFlag = false;
   var poweroff = false;
   var infiniteFlag = false;
-  var pauseFlag = false;
 
   require("IRReceiver").connect(D34, function(code) {
     var _code = parseInt(code, 2);
@@ -166,6 +156,10 @@ var run = function () {
       btn = 'CALIBR';
       console.log(btn);
     }
+    // if (_code === 6450774781 || _code === 25803099127) {
+    //   btn = 'R POWER';
+    //   console.log(btn);
+    // }
     if (_code === 17246784247 || _code === 4311696061) {
       btn = 'SETUP';
       console.log(btn);
@@ -190,6 +184,10 @@ var run = function () {
       btn = 'OK';
       console.log(btn);
     }
+    if (_code === 6450813031 || _code === 25803252127) {
+      btn = '90DEG';
+      console.log(btn);
+    }
 
     console.log(_code);
 
@@ -212,15 +210,9 @@ var run = function () {
       console.log('Setup Exit');
       return;
     }
-    if (btn === 'OK' && startFlag && !poweroff  && !pauseFlag|| btn === 'OK' && infiniteFlag && !poweroff && !pauseFlag) {
-      BtnPause();
-      simNum = 0;
-      return;
-    }
-    if (btn === 'OK' && startFlag && !poweroff && pauseFlag|| btn === 'OK' && infiniteFlag && !poweroff && pauseFlag) {
+    if (btn === 'OK' && startFlag && !poweroff || btn === 'OK' && infiniteFlag && !poweroff) {
       startFlag = false;
       infiniteFlag = false;
-      pauseFlag = false;
       BtnStop();
       console.log('OK STOP');
       simNum = 0;
@@ -232,7 +224,6 @@ var run = function () {
       simNum = 0;
       return;
     }
-
     if (btn === 'DOWN' && !dispay_2 && setupMode) {
       marker = marker + indent;
       SettingsDisplay_1();
@@ -259,13 +250,6 @@ var run = function () {
       simNum = 0;
       return;
     }
-    if (btn === 'RIGHT' && startFlag && !poweroff && pauseFlag) {
-      pauseFlag = false;
-      console.log('CONTINUE ROTATION');
-      simNum = 0;
-      BtnStart();
-      return;
-    }
     if (btn === 'RIGHT' && !dispay_2 && setupMode) {
       SettingsDisplay_2();
       console.log('Right');
@@ -282,11 +266,6 @@ var run = function () {
       digitalWrite(pinDir, 1);
       digitalWrite(pinStep, 0);
       digitalWrite(pinEn, stOn);
-
-      digitalWrite(pinDir2, 1);
-      digitalWrite(pinStep2, 0);
-      digitalWrite(pinEn2, stOn);
-
       _speed = 1;
       infiniteRotation();
       console.log('Right rotation');
@@ -296,11 +275,6 @@ var run = function () {
       digitalWrite(pinDir, 0);
       digitalWrite(pinStep, 0);
       digitalWrite(pinEn, stOn);
-
-      digitalWrite(pinDir2, 0);
-      digitalWrite(pinStep2, 0);
-      digitalWrite(pinEn2, stOn);
-
       _speed = 1;
       infiniteRotation();
       console.log('Left rotation');
@@ -314,7 +288,15 @@ var run = function () {
       calibration = false;
       Stop();
     }
-
+    deg90flag = false;
+    if (btn === '90DEG' && !calibration && !poweroff && !deg90flag) {
+      deg90flag = true;
+      deg90();
+      return;
+    } else if (btn === '90DEG' && calibration && !poweroff) {
+      deg90flag = false;
+      Stop();
+    }
     if (btn === 'R POWER' && !poweroff) {
       g.off();
       poweroff = true;
@@ -416,6 +398,10 @@ var run = function () {
     g.drawString('speed', 8, indent * 3);
     g.drawString('=', nameIndent, indent * 3);
     g.drawString(config.speed, 57, indent * 3);
+
+    g.drawString('accel', 8, indent * 4);
+    g.drawString('=', nameIndent, indent * 4);
+    g.drawString(config.acceleration, 57, indent * 4);
 
     g.flip();
   }
@@ -521,18 +507,35 @@ var run = function () {
       SettingsDisplay_1();
       simNum++;
     }
+    if (!dispay_2 && marker === indent * 4 && simNum <= 7 && simNum > 0) {
+      config.acceleration = (config.acceleration + irDigital) * 1;
+      SettingsDisplay_1();
+      simNum++;
+    }
+    if (!dispay_2 && marker === indent * 4 && simNum === 0 && irDigital != '0') {
+      config.acceleration = '';
+      config.acceleration = (config.acceleration + irDigital) * 1;
+      SettingsDisplay_1();
+      simNum++;
+    }
 
     //DISPLAY 2
     if (dispay_2 && marker === 0 && irDigital === '1') {
       config.shootingMode = 'inter';
       SettingsDisplay_2();
     }
-
+    if (dispay_2 && marker === 0 && irDigital === '2') {
+      config.shootingMode = 'seria';
+      SettingsDisplay_2();
+    }
     if (dispay_2 && marker === 0 && irDigital === '3') {
       config.shootingMode = 'nonST';
       SettingsDisplay_2();
     }
-
+    if (dispay_2 && marker === 0 && irDigital === '4') {
+      config.shootingMode = 'PingP';
+      SettingsDisplay_2();
+    }
      if (dispay_2 && marker === indent && irDigital === '1') {
       config.direction = 1;
       SettingsDisplay_2();
@@ -557,30 +560,43 @@ var run = function () {
   }
 
   var stepperTime;
+  var accelerationTime;
+  var accIntervalSteps;
+  var accSpeed;
   var shootingTime1F;
   var shootingTime;
   var _shootingTime;
   var nonStopTimerSpeed;
+  var accSteps;
+  var accStep;
 
   function NumControl() {
     console.log('NumControl');
+    accSteps = (config.allSteps / config.frame) / 4;
+    accStep = (config.speed / accSteps)*2;
     config.framesLeft = config.frame;
     _speed = 1;
     var frameSteps = config.allSteps / config.frame;
     stepperTime = frameSteps / config.speed * 1000;
-
+    //stepperTime = frameSteps / config.speed;
+    var accelerationSteps = frameSteps / 4;
+    accelerationTime = stepperTime / 4;
+    accIntervalSteps = Math.floor(0.04 * accelerationSteps);
+    if (accIntervalSteps <= 0) {
+      accIntervalSteps = 1;
+    }
+    //accStep = config.speed / accIntervalSteps;
+    accSpeed = accelerationTime / accIntervalSteps;
     shootingTime1F = config.pause + config.delay + stepperTime + 500;
     shootingTime = shootingTime1F * config.frame;
     _shootingTime = shootingTime;
     nonStopTimerSpeed = stepperTime;
     digitalWrite(pinDir, config.direction);
-    digitalWrite(pinDir2, config.direction);
     saveConfig();
   }
 
   function Start() {
     digitalWrite(pinEn, 0);
-    digitalWrite(pinEn2, 0);
     digitalWrite(pinLaser, rOff);
 	if (config.allSteps === -1){
 		startFlag = true;
@@ -606,15 +622,15 @@ var run = function () {
     startFlag = false;
     digitalWrite(pinStep, 0);
     digitalWrite(pinEn, 1);
-    digitalWrite(pinStep2, 0);
-    digitalWrite(pinEn2, 1);
     digitalWrite(pinRelay, rOn);
     digitalWrite(pinLaser, rOn);
+    //P8.mode('analog');
     NumControl();
     StartDisplay();
     if (wsocket) {
       config.state = 'waiting';
       wsocket.send(JSON.stringify(config));
+      //wsocket.send(JSON.stringify(config));
     }
   }
 
@@ -627,7 +643,6 @@ var run = function () {
     config.framesLeft--;
     StartDisplay();
     analogWrite(pinStep, 0.5, { freq : config.speed } );
-    analogWrite(pinStep2, 0.5, { freq : config.speed } );
     console.log('nonStopTimerSpeed ' + nonStopTimerSpeed);
     var nonStopInterval = setInterval(function () {
       if (config.framesLeft <= 0) {
@@ -668,21 +683,21 @@ var run = function () {
     var startSpeed = 100;
     //analogWrite(pinStep, 0.5, { freq : config.speed } );
     var stepsLeft = config.allSteps / config.frame;
+    console.log('accStep ' + accStep);
 
     var stepTimer = setInterval(function () {
 
       startSpeed = config.speed;
       analogWrite(pinStep, 0.5, { freq : startSpeed } );
-      analogWrite(pinStep2, 0.5, { freq : startSpeed } );
 
       stepsLeft -= startSpeed / 100;
       console.log('stepsLeft ' + stepsLeft);
+      console.log('startSpeed ' + startSpeed);
 
       if (stepsLeft <= 0) {
         clearInterval(stepTimer);
         _shootingTime = _shootingTime - shootingTime1F;
         digitalWrite(pinStep, 0);
-        digitalWrite(pinStep2, 0);
         Start();
         return;
       }
@@ -733,22 +748,10 @@ var run = function () {
     console.log('BtnStop');
         Stop();
   }
-
   function BtnStart() {
     startFlag = true;
     StartDisplay();
     Start();
-  }
-
-  function BtnPause() {
-    clearInterval();
-    pauseFlag = true;
-    console.log('OK PAUSE');
-    
-    if (wsocket) {
-      config.state = 'pause';
-      wsocket.send(JSON.stringify(config));
-    }
   }
 
   function infiniteRotation() {
@@ -760,9 +763,7 @@ var run = function () {
     g.flip();
 
     digitalWrite(pinEn, 0);
-    digitalWrite(pinEn2, 0);
     analogWrite(pinStep, 0.5, { freq : config.speed } );
-    analogWrite(pinStep2, 0.5, { freq : config.speed } );
   }
 
   function Calibration() {
@@ -776,11 +777,9 @@ var run = function () {
     g.flip();
 
     digitalWrite(pinEn, 0);
-    digitalWrite(pinEn2, 0);
     var step1 = true;
     config.allSteps = 0;
     analogWrite(pinStep, 0.5, { freq : config.speed } );
-    analogWrite(pinStep2, 0.5, { freq : config.speed } );
 
     setInterval(function () {
       config.allSteps += config.speed / 100;
@@ -812,3 +811,4 @@ function onInit () {
     run();
   }, 100);
 }
+
